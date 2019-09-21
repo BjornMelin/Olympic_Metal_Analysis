@@ -1,0 +1,250 @@
+---
+title: "MAT213 Project #2"
+author: "Bjorn Melin"
+date: "3/5/2019"
+output: html_document
+---
+
+\
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(rvest)
+library(methods)
+library(tidyverse)
+library(lubridate)
+library(knitr)
+```
+
+## **Link to Original Data Tables Source:**
+[https://en.wikipedia.org/wiki/List_of_Olympic_medalists_in_freestyle_skiing]
+
+\
+
+## **Explanation of Website:** 
+The reason I chose the website and the tables I did is because I love to ski and thought that it would be fun to work on a project involving data that I am interested in.  This website is titled "List of Olympic metalists in freestyle skiing" and includes many tables showing which athlete won each metal and their country for different events in freestyle skiing over the course of many olympic games.  It also shows athlete metal leaders, their total metal counts, and which country they are from.  For this project, I will focus on the "Aerials" freestyle skiing event.  I will be using the tables containing aerial event metal data for men and women.  Combining them in such a way that I am able to create a meaningful data visualization and draw a meaningful conclusion.
+
+\
+
+## **Questions to be Answered:**
+How do the metal counts for each country from 1994-2018 for each type of metal compare to one another?  What country has won the highest number of metals for each type of metal (gold, silver, and bronze).
+
+```{r, echo=FALSE}
+# Save url of website containing the tables I will use
+url <- "https://en.wikipedia.org/wiki/List_of_Olympic_medalists_in_freestyle_skiing"
+
+tables <- url %>%
+  read_html() %>%
+  html_nodes("table")
+```
+
+\
+
+## **Original Tables:**
+
+```{r, echo=FALSE}
+### Determine which table we want to grab from the data ###
+# Below, the table for mens aerials was found and displayed
+Table4 <- html_table(tables[[4]])
+# Being as the View() command was causing my knit to use XQuartz,
+# I had to find another way to neatly display these tables in my 
+# knit.  I ended up finding the "kable" command which works great!
+kable(Table4, caption = "Mens Aerials")
+
+
+# Below, the table for womens aerials was found and displayed
+Table11 <- html_table(tables[[11]])
+kable(Table11, caption = "Womens Aerials")
+
+```
+
+\
+
+## **Table After Merging the Two Input Tables:**
+
+```{r, echo=FALSE}
+# The code below adds a column for gender in Table4 and sets all
+# values to male since the data was from the male Aerials event
+# Then the "Games" column is reformatted to not include "details"
+# after every country name.
+Table4_Male <- Table4 %>% 
+  mutate(Gender = "Male") %>% 
+  mutate(Games = stringr::str_remove(Games, "details"))
+#View(Table4_Male)
+
+
+# The code below adds a column for gender in Table11 and sets all
+# values to female since the data was from the female Aerials event
+# Then the "Games" column is reformatted to not include "details"
+# after every country name.
+Table11_Female <- Table11 %>% 
+  mutate(Gender = "Female") %>% 
+  mutate(Games = stringr::str_remove(Games, "details"))
+#View(Table11_Female)
+
+# Bind the rows of both tables to form a single table containing all data
+Merged_Table1 <- rbind(Table4_Male, Table11_Female) %>% 
+  arrange(Games)
+kable(Merged_Table1, caption = "Merged Men/Women Aerials")
+
+```
+
+\
+
+## **Two Tables Showing Desired Results After Tidying the Merged Table:**
+
+#### **First Table (Best Representation to be Used in a Plot):**
+
+```{r, echo=FALSE}
+# Creating a new table to be used to compute prop b/w men and women 
+# of e/ country for gold metals
+Gold_Table <- Merged_Table1 %>% 
+  select(Games, Gold, Gender) %>% 
+  arrange(Gender) 
+#View(Gold_Table)
+
+Gold_Table2 <- Gold_Table %>% 
+  separate(Gold, c("first_name", "country"), " ", extra = "merge") %>% 
+  separate(country, c("last_name", "country"), extra = "merge") %>% 
+  unite("name", c("first_name", "last_name"), sep = " ") %>% 
+  mutate(Metal = "Gold") %>% 
+  select(Games, Metal, name, country, Gender)
+
+#View(Gold_Table2)
+
+Gold_Table3 <- Gold_Table2 %>% 
+  group_by(country) %>% 
+  summarise(metal_count = n()) %>% 
+  mutate(Metal = "Gold") 
+#View(Gold_Table3)
+
+
+
+# Creating a new table to be used to compute prop b/w men and women 
+# of e/ country for silver metals
+Silver_Table <- Merged_Table1 %>% 
+  select(Games, Silver, Gender) %>% 
+  arrange(Gender)
+#View(Silver_Table)
+
+Silver_Table2 <- Silver_Table %>% 
+  separate(Silver, c("first_name", "country"), " ", extra = "merge") %>% 
+  separate(country, c("last_name", "country"), extra = "merge") %>% 
+  unite("name", c("first_name", "last_name"), sep = " ") %>% 
+  mutate(Metal = "Silver") %>% 
+  select(Games, Metal, name, country, Gender)
+
+#View(Silver_Table2)
+
+Silver_Table3 <- Silver_Table2 %>% 
+  group_by(country) %>% 
+  summarise(metal_count = n()) %>% 
+  mutate(Metal = "Silver") 
+#View(Silver_Table3)
+
+
+
+# Creating a new table to be used to compute prop b/w men and women 
+# of e/ country for bronze metals
+Bronze_Table <- Merged_Table1 %>% 
+  select(Games, Bronze, Gender) %>% 
+  arrange(Gender)
+#View(Bronze_Table)
+
+Bronze_Table2 <- Bronze_Table %>% 
+  separate(Bronze, c("first_name", "country"), " ", extra = "merge") %>% 
+  separate(country, c("last_name", "country"), extra = "merge") %>% 
+  unite("name", c("first_name", "last_name"), sep = " ") %>% 
+  mutate(Metal = "Bronze")
+#View(Bronze_Table2)
+
+Bronze_Table3 <- Bronze_Table2 %>% 
+  group_by(country) %>% 
+  summarise(metal_count = n()) %>% 
+  mutate(Metal = "Bronze") 
+#View(Bronze_Table3)
+
+
+# Creates a new table which shows the total metals won of each type (gold, silver, bronze)
+# for each country.  Columns include country, metal_count, and type of metal.  The table
+# is arranged to be sorted in descending order with respect to the metal count.
+# The match command allowed me to sort the rows of "Metal" in significance order.
+Merged_Table3 <- bind_rows(Gold_Table3, Silver_Table3, Bronze_Table3) %>% 
+  arrange(match(Metal, c("Gold", "Silver", "Bronze")), desc(metal_count))
+kable(Merged_Table3, caption = "Metal Types/Counts Per Country (Representation 1)")
+```
+
+\
+
+#### Second Table (Best Table Representation of Data):
+
+```{r,echo=FALSE}
+# Make a new table with one col containing all countries and the other
+# 3 with bronze, silver, and gold metal counts from 1994-2018
+# note that I rearranged the table so that metal counts are sorted 
+Merged_Table4 <- Merged_Table3 %>% 
+  spread(key = "Metal", value = metal_count) %>% 
+  select(country, Gold, Silver, Bronze) %>% 
+  arrange(desc(Gold), desc(Silver), desc(Bronze))
+
+Merged_Table4[is.na(Merged_Table4)] <- 0   # Replaces "NA" with 0
+kable(Merged_Table4, caption = "Metal Types/Counts Per Country (Representation 2)",
+      na.rm = TRUE)  
+
+```
+
+\
+
+## **Meaningful Data Graphic that Addresses the Questions:**
+
+```{r, echo=FALSE}
+# This new assignment was needed to maintain the desired facet for the plot.
+Merged_Table3$Metal_order <- factor(Merged_Table3$Metal,
+                                    levels = c('Gold','Silver','Bronze'))
+
+# Creating my plot comparing the metal counts of each country from years 
+# 1994-2018.  Will facet into different plots from each type of metal
+# Note I used Merged_Table3 here and not Merged_table4 here so that I could
+# better represent the results I desired in a plot
+g <- ggplot(data = Merged_Table3, aes(x = country, y = metal_count)) +
+  geom_bar(stat = "identity", aes(fill = country)) +
+  coord_flip() +
+  facet_grid(.~Metal_order) +
+  ggtitle(label = "Olympics Aerials Event Metal Counts", 
+          subtitle = "From Years 1994-2018") +
+  ylab(label = "Metal Count") +
+  xlab(label = "Country") +
+  theme(legend.key.size = unit(0.5, "lines"), 
+        plot.title = element_text(size = 12, colour = "blue", 
+                                  face = "bold"),
+        plot.subtitle = element_text(size = 9, colour = "gray20", 
+                                     face = "italic"))
+g
+```
+
+\
+
+## **Narrative Description of Data Graphic:**
+The graphic shown above which I created through modifications of the original data tables shows the total counts for gold, silver, and bronze metals won in aerials by each country included in the original dataset over the course of seven winter olypic games (1994-2018).  This graphic allows us to answer the original question of how the metal counts for each country from 1994-2018 for each type of metal compare to one another very clearly.  Through implementing `Merged_Table3` as a bar plot facetted by type of metal, the counts for the three types of metals won by each country is displayed very clearly and is formatted in such a way that it makes it easy to see how the metals won between each country compare and contrast to one another.  Allowing a viewer of this graphic to answer the first question stated very quickly and clearly.  See comments in code for explanation of why `Merged_Table3` was used for the visualization instead of `Merged_Table4`.
+
+\
+
+The graphic also shows us a clear answer for the second part of the question which asks us what country has the highest number of metals won for each type of metal (gold, silver, and bronze).  Similar to how this graphic allows a viewer to answer the first part of the question quickly and clearly, a viewer is also able to easily identify which country has won the most of each type of metal through observation of the bars in the plot.  The bar with the greatest height denotes the country whom has won the most of that type of metal.  Through observation, we see that the country with the most gold metals from 1994-2018 in aerials is Belarus and the country with the most silver and bronze metals is China.  In summary, my implementation of this graphic was meant to aid a viewer in answering the questions on hand by displaying answers very clearly and simply.  The final graphic created fulfills this task in an orderly fashion. 
+
+\
+
+There is one aspect about my final merged tables and final graphic that is important to mention.   This being that the country with the name "Olympic Athletes from Russia" is not really seperate country, it is really just the same as the country "Russia".  The reason why it is listed seperately and with a different name involves a doping scandal among Russian olympic athletes in 2018.  This doping scandal led to the Russian Olympic Committee being suspended for the 2018 winter olympic games and is why those participating in the 2018 games could not compete for the country of Russia directly.  For this project, I decided to keep "Russia" and "Olympic Athletes from Russia" as seperate countries as technically speaking, they are in fact different.  A link for further information on this topic here [link](https://en.wikipedia.org/wiki/Olympic_Athletes_from_Russia_at_the_2018_Winter_Olympics).
+
+\
+
+There are many possible questions that could be answered and many graphics that could be created from this dataset.  As for the reason why I chose the questions that I did, I believe that many of the possible questions that could have been asked would have been too similar to what the original tables show or would have answers that could be found by simple observations on the original tables.  Some examples of questions I thought about of this sort are how many metals each country won per olympics?  What country has won the most metals for this event?  Who has won the most overall metals in this event?  All of these questions would be great but after dissecting the website containing the original tables, I realized that there had already been other tables created which show answers for many of these questions.  Also, many of these questions could be easily answered by a quick observation of the two original tables I chose.  These factors all played a role in why I landed on the questions that I did for this project.  I believe that my questions are complex in that they require modifications to be made on the original tables and a graphic to be created in order to quickly and clearly obtain the answers desired.
+
+
+
+
+
+
+
+
+
+
