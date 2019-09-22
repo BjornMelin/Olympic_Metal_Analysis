@@ -1,5 +1,5 @@
 ---
-title: "MAT213 Project #2"
+title: "Olympic Freestyle Skiing Gold Metal Analysis"
 author: "Bjorn Melin"
 date: "3/5/2019"
 output: html_document
